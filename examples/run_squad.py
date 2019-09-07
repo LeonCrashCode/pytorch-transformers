@@ -41,7 +41,7 @@ from pytorch_transformers import (WEIGHTS_NAME, BertConfig,
 
 from pytorch_transformers import AdamW, WarmupLinearSchedule
 
-from utils_squad import (read_squad_examples, convert_examples_to_features,
+from utils_squad import (read_ropes_examples, convert_examples_to_features,
                          RawResult, write_predictions,
                          RawResultExtended, write_predictions_extended)
 
@@ -286,7 +286,7 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
         features = torch.load(cached_features_file)
     else:
         logger.info("Creating features from dataset file at %s", input_file)
-        examples = read_squad_examples(input_file=input_file,
+        examples = read_ropes_examples(input_file=input_file,
                                                 is_training=not evaluate,
                                                 version_2_with_negative=args.version_2_with_negative)
         features = convert_examples_to_features(examples=examples,
