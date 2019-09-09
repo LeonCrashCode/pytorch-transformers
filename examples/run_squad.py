@@ -191,7 +191,8 @@ def train(args, train_dataset, model, tokenizer):
         if args.max_steps > 0 and global_step > args.max_steps:
             train_iterator.close()
             break
-
+        print('lr', scheduler.get_lr()[0], global_step)
+        print('loss', (tr_loss - logging_loss)/args.logging_steps, global_step)
     if args.local_rank in [-1, 0]:
         tb_writer.close()
 
