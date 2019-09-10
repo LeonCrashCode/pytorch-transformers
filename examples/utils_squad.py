@@ -199,7 +199,7 @@ def read_ropes_examples(input_file, is_training, version_2_with_negative):
     for entry in input_data:
         for paragraph in entry["paragraphs"]:
             #paragraph_text = paragraph["context"]
-            paragraph_text = paragraph["background"] + " " + paragraph["situation"]
+            background_text = paragraph["background"] + " " + paragraph["situation"]
             '''
             doc_tokens = []
             char_to_word_offset = []
@@ -220,7 +220,7 @@ def read_ropes_examples(input_file, is_training, version_2_with_negative):
                 question_text = qa["question"]
 
                 # added for ropes
-                paragraph_text += " " + question_text
+                paragraph_text = background_text + " " + question_text
                 doc_tokens = []
                 char_to_word_offset = []
                 prev_is_whitespace = True
