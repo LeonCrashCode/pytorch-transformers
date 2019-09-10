@@ -108,7 +108,7 @@ class InputFeatures(object):
         self.is_impossible = is_impossible
 
 
-def read_squad_examples(input_file, is_training, version_2_with_negative):
+def read_squad_examples(input_file, is_training, version_2_with_negative, use_background):
     """Read a SQuAD json file into a list of SquadExample."""
     with open(input_file, "r", encoding='utf-8') as reader:
         input_data = json.load(reader)["data"]
@@ -121,8 +121,11 @@ def read_squad_examples(input_file, is_training, version_2_with_negative):
     examples = []
     for entry in input_data:
         for paragraph in entry["paragraphs"]:
-            #paragraph_text = paragraph["context"]
-            background_text = paragraph["background"] + " " + paragraph["situation"]
+            # paragraph_text = paragraph["context"]
+            if use_background:
+                paragraph_texts = paragraph["background"] + " " + paragraph["situation"]
+            else:
+                paragraph_texts = paragraph["situation"]
 
             '''
             doc_tokens = []
@@ -139,12 +142,11 @@ def read_squad_examples(input_file, is_training, version_2_with_negative):
                     prev_is_whitespace = False
                 char_to_word_offset.append(len(doc_tokens) - 1)
             '''
+
             for qa in paragraph["qas"]:
                 qas_id = qa["id"]
                 question_text = qa["question"]
-
-                # added for ropes
-                paragraph_text = background_text + " " + question_text
+                paragraph_text = paragraph_texts + " " + question_text
                 doc_tokens = []
                 char_to_word_offset = []
                 prev_is_whitespace = True
@@ -158,7 +160,7 @@ def read_squad_examples(input_file, is_training, version_2_with_negative):
                             doc_tokens[-1] += c
                         prev_is_whitespace = False
                     char_to_word_offset.append(len(doc_tokens) - 1)
-
+     
                 start_position = None
                 end_position = None
                 orig_answer_text = None
@@ -172,7 +174,13 @@ def read_squad_examples(input_file, is_training, version_2_with_negative):
                     if not is_impossible:
                         answer = qa["answers"][0]
                         orig_answer_text = answer["text"]
-                        answer_offset = answer["answer_start"]
+                        # answer_offset = answer["answer_start"]
+                        if orig_answer_text in paragraph_text:
+                            answer_offset = paragraph_text.index(orig_answer_text)
+                        else:
+                            print('Unable to find answer')
+                            answer_offset = -1
+
                         answer_length = len(orig_answer_text)
                         start_position = char_to_word_offset[answer_offset]
                         end_position = char_to_word_offset[answer_offset + answer_length - 1]
@@ -204,6 +212,7 @@ def read_squad_examples(input_file, is_training, version_2_with_negative):
                     is_impossible=is_impossible)
                 examples.append(example)
     return examples
+
 
 def convert_examples_to_features(examples, tokenizer, max_seq_length,
                                  doc_stride, max_query_length, is_training,
@@ -506,10 +515,14 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
     example_index_to_features = collections.defaultdict(list)
     for feature in all_features:
         example_index_to_features[feature.example_index].append(feature)
+    #import pdb
+    #pdb.set_trace()
 
     unique_id_to_result = {}
     for result in all_results:
         unique_id_to_result[result.unique_id] = result
+
+    #pdb.set_trace()
 
     _PrelimPrediction = collections.namedtuple(  # pylint: disable=invalid-name
         "PrelimPrediction",

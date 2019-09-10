@@ -188,6 +188,7 @@ def train(args, train_dataset, model, tokenizer):
         if args.max_steps > 0 and global_step > args.max_steps:
             train_iterator.close()
             break
+
     if args.local_rank in [-1, 0]:
         tb_writer.close()
 
@@ -285,9 +286,10 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
         features = torch.load(cached_features_file)
     else:
         logger.info("Creating features from dataset file at %s", input_file)
-        examples = read_ropes_examples(input_file=input_file,
+        examples = read_squad_examples(input_file=input_file,
                                                 is_training=not evaluate,
-                                                version_2_with_negative=args.version_2_with_negative)
+                                                version_2_with_negative=args.version_2_with_negative,
+        use_background=args.use_background)
         features = convert_examples_to_features(examples=examples,
                                                 tokenizer=tokenizer,
                                                 max_seq_length=args.max_seq_length,
@@ -348,6 +350,10 @@ def main():
 
     parser.add_argument('--version_2_with_negative', action='store_true',
                         help='If true, the SQuAD examples contain some that do not have an answer.')
+
+    parser.add_argument('--use_background', action='store_true',
+                        help='If true, append the background before the situation')
+
     parser.add_argument('--null_score_diff_threshold', type=float, default=0.0,
                         help="If null_score - best_non_null is greater than the threshold predict null.")
 
