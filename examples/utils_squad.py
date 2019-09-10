@@ -255,6 +255,109 @@ def read_ropes_examples(input_file, is_training, version_2_with_negative):
                         else:
                             print('Unable to find')
                             answer_offset = -1
+
+                        answer_length = len(orig_answer_text)
+                        start_position = char_to_word_offset[answer_offset]
+                        end_position = char_to_word_offset[answer_offset + answer_length - 1]
+                        # Only add answers where the text can be exactly recovered from the
+                        # document. If this CAN'T happen it's likely due to weird Unicode
+                        # stuff so we will just skip the example.
+                        #
+                        # Note that this means for training mode, every example is NOT
+                        # guaranteed to be preserved.
+                        actual_text = " ".join(doc_tokens[start_position:(end_position + 1)])
+                        cleaned_answer_text = " ".join(
+                            whitespace_tokenize(orig_answer_text))
+                        if actual_text.find(cleaned_answer_text) == -1:
+                            logger.warning("Could not find answer: '%s' vs. '%s'",
+                                           actual_text, cleaned_answer_text)
+                            continue
+                    else:
+                        start_position = -1
+                        end_position = -1
+                        orig_answer_text = ""
+
+                example = SquadExample(
+                    qas_id=qas_id,
+                    question_text=question_text,
+                    doc_tokens=doc_tokens,
+                    orig_answer_text=orig_answer_text,
+                    start_position=start_position,
+                    end_position=end_position,
+                    is_impossible=is_impossible)
+                examples.append(example)
+    return examples
+
+def read_ropes_bleu_examples(input_file, is_training, version_2_with_negative):
+    """Read a SQuAD json file into a list of SquadExample."""
+    with open(input_file, "r", encoding='utf-8') as reader:
+        input_data = json.load(reader)["data"]
+
+    def is_whitespace(c):
+        if c == " " or c == "\t" or c == "\r" or c == "\n" or ord(c) == 0x202F:
+            return True
+        return False
+
+    examples = []
+    for entry in input_data:
+        for paragraph in entry["paragraphs"]:
+            #paragraph_text = paragraph["context"]
+            paragraph_texts = paragraph["background_segs"]
+            '''
+            doc_tokens = []
+            char_to_word_offset = []
+            prev_is_whitespace = True
+            for c in paragraph_text:
+                if is_whitespace(c):
+                    prev_is_whitespace = True
+                else:
+                    if prev_is_whitespace:
+                        doc_tokens.append(c)
+                    else:
+                        doc_tokens[-1] += c
+                    prev_is_whitespace = False
+                char_to_word_offset.append(len(doc_tokens) - 1)
+            '''
+            for qa in paragraph["qas"]:
+                qas_id = qa["id"]
+                question_text = qa["question"]
+                anchor = qa["bleu_pick"]
+                # added for ropes
+                paragraph_text = paragraph_texts[anchor]+ " " + paragraph["situation"] + " " + question_text
+                doc_tokens = []
+                char_to_word_offset = []
+                prev_is_whitespace = True
+                for c in paragraph_text:
+                    if is_whitespace(c):
+                        prev_is_whitespace = True
+                    else:
+                        if prev_is_whitespace:
+                            doc_tokens.append(c)
+                        else:
+                            doc_tokens[-1] += c
+                        prev_is_whitespace = False
+                    char_to_word_offset.append(len(doc_tokens) - 1)
+
+
+                start_position = None
+                end_position = None
+                orig_answer_text = None
+                is_impossible = False
+                if is_training:
+                    if version_2_with_negative:
+                        is_impossible = qa["is_impossible"]
+                    if (len(qa["answers"]) != 1) and (not is_impossible):
+                        raise ValueError(
+                            "For training, each question should have exactly 1 answer.")
+                    if not is_impossible:
+                        answer = qa["answers"][0]
+                        orig_answer_text = answer["text"]
+                        #answer_offset = answer["answer_start"] #re-compute for ropes
+                        if orig_answer_text in paragraph_text:
+                            answer_offset = paragraph_text.index(orig_answer_text)
+                        else:
+                            print('Unable to find')
+                            answer_offset = -1
                             
                         answer_length = len(orig_answer_text)
                         start_position = char_to_word_offset[answer_offset]
@@ -288,7 +391,108 @@ def read_ropes_examples(input_file, is_training, version_2_with_negative):
                 examples.append(example)
     return examples
 
+def read_ropes_cosine_examples(input_file, is_training, version_2_with_negative):
+    """Read a SQuAD json file into a list of SquadExample."""
+    with open(input_file, "r", encoding='utf-8') as reader:
+        input_data = json.load(reader)["data"]
 
+    def is_whitespace(c):
+        if c == " " or c == "\t" or c == "\r" or c == "\n" or ord(c) == 0x202F:
+            return True
+        return False
+
+    examples = []
+    for entry in input_data:
+        for paragraph in entry["paragraphs"]:
+            #paragraph_text = paragraph["context"]
+            paragraph_texts = paragraph["background_segs"]
+            '''
+            doc_tokens = []
+            char_to_word_offset = []
+            prev_is_whitespace = True
+            for c in paragraph_text:
+                if is_whitespace(c):
+                    prev_is_whitespace = True
+                else:
+                    if prev_is_whitespace:
+                        doc_tokens.append(c)
+                    else:
+                        doc_tokens[-1] += c
+                    prev_is_whitespace = False
+                char_to_word_offset.append(len(doc_tokens) - 1)
+            '''
+            for qa in paragraph["qas"]:
+                qas_id = qa["id"]
+                question_text = qa["question"]
+                anchor = qa["cosine_pick"]
+                # added for ropes
+                paragraph_text = paragraph_texts[anchor]+ " " + paragraph["situation"] + " " + question_text
+                doc_tokens = []
+                char_to_word_offset = []
+                prev_is_whitespace = True
+                for c in paragraph_text:
+                    if is_whitespace(c):
+                        prev_is_whitespace = True
+                    else:
+                        if prev_is_whitespace:
+                            doc_tokens.append(c)
+                        else:
+                            doc_tokens[-1] += c
+                        prev_is_whitespace = False
+                    char_to_word_offset.append(len(doc_tokens) - 1)
+
+
+                start_position = None
+                end_position = None
+                orig_answer_text = None
+                is_impossible = False
+                if is_training:
+                    if version_2_with_negative:
+                        is_impossible = qa["is_impossible"]
+                    if (len(qa["answers"]) != 1) and (not is_impossible):
+                        raise ValueError(
+                            "For training, each question should have exactly 1 answer.")
+                    if not is_impossible:
+                        answer = qa["answers"][0]
+                        orig_answer_text = answer["text"]
+                        #answer_offset = answer["answer_start"] #re-compute for ropes
+                        if orig_answer_text in paragraph_text:
+                            answer_offset = paragraph_text.index(orig_answer_text)
+                        else:
+                            print('Unable to find')
+                            answer_offset = -1
+                            
+                        answer_length = len(orig_answer_text)
+                        start_position = char_to_word_offset[answer_offset]
+                        end_position = char_to_word_offset[answer_offset + answer_length - 1]
+                        # Only add answers where the text can be exactly recovered from the
+                        # document. If this CAN'T happen it's likely due to weird Unicode
+                        # stuff so we will just skip the example.
+                        #
+                        # Note that this means for training mode, every example is NOT
+                        # guaranteed to be preserved.
+                        actual_text = " ".join(doc_tokens[start_position:(end_position + 1)])
+                        cleaned_answer_text = " ".join(
+                            whitespace_tokenize(orig_answer_text))
+                        if actual_text.find(cleaned_answer_text) == -1:
+                            logger.warning("Could not find answer: '%s' vs. '%s'",
+                                           actual_text, cleaned_answer_text)
+                            continue
+                    else:
+                        start_position = -1
+                        end_position = -1
+                        orig_answer_text = ""
+
+                example = SquadExample(
+                    qas_id=qas_id,
+                    question_text=question_text,
+                    doc_tokens=doc_tokens,
+                    orig_answer_text=orig_answer_text,
+                    start_position=start_position,
+                    end_position=end_position,
+                    is_impossible=is_impossible)
+                examples.append(example)
+    return examples
 def convert_examples_to_features(examples, tokenizer, max_seq_length,
                                  doc_stride, max_query_length, is_training,
                                  cls_token_at_end=False,
@@ -469,6 +673,8 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
                     "input_mask: %s" % " ".join([str(x) for x in input_mask]))
                 logger.info(
                     "segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
+                logger.info(
+                    "p_mask: %s" % " ".join([str(x) for x in p_mask]))
                 if is_training and span_is_impossible:
                     logger.info("impossible example")
                 if is_training and not span_is_impossible:
